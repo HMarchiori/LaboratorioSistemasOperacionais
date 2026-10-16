@@ -1,0 +1,26 @@
+# O Buildroot é baixado pelo setup.sh: só os arquivos próprios são versionados
+/buildroot-2025.02.16.tar.gz
+/rootfs/
+/entrega.tar.gz
+/buildroot-2025.02.16/*
+!/buildroot-2025.02.16/apps/
+!/buildroot-2025.02.16/modules/
+!/buildroot-2025.02.16/custom-scripts/
+!/buildroot-2025.02.16/overlay/
+
+# Gerados pelo pre-build.sh e pelos Makefiles
+/buildroot-2025.02.16/overlay/etc/init.d/S41network-config
+/buildroot-2025.02.16/overlay/usr/
+/buildroot-2025.02.16/overlay/lib/
+/buildroot-2025.02.16/overlay/var/www/data/cgi-bin/
+
+# Artefatos de compilação dos módulos
+*.o
+*.o.d
+*.ko
+*.mod
+*.mod.c
+.*.cmd
+modules.order
+Module.symvers
+.DS_Store

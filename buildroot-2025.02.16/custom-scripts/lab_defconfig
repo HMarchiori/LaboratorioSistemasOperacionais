@@ -1,0 +1,33 @@
+# Opções dos laboratórios, aplicadas sobre configs/qemu_x86_defconfig.
+# Equivalem às escolhas feitas no "make menuconfig" de cada lab.
+
+# Lab 1.1 -- System configuration
+BR2_TOOLCHAIN_BUILDROOT_GLIBC=y
+BR2_TARGET_ENABLE_ROOT_LOGIN=y
+BR2_TARGET_GENERIC_ROOT_PASSWD="root"
+BR2_TARGET_GENERIC_GETTY_PORT="ttyS0"
+BR2_SYSTEM_DHCP=""
+
+# O host-qemu do defconfig não é usado (o QEMU vem do apt); desligar economiza tempo de compilação
+# BR2_PACKAGE_HOST_QEMU is not set
+
+# Lab 1.1 -- driver e1000 (linux-menuconfig) e RTC, via fragmento do kernel
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="custom-scripts/linux.fragment"
+
+# Lab 1.2 -- overlay e script de pre-build
+BR2_ROOTFS_OVERLAY="overlay"
+BR2_ROOTFS_PRE_BUILD_SCRIPT="custom-scripts/pre-build.sh"
+
+# Lab 1.3 -- netcat, iperf3; desafio: usuário (makeusers) e ssh (dropbear)
+BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
+BR2_PACKAGE_NETCAT_OPENBSD=y
+BR2_PACKAGE_IPERF3=y
+BR2_ROOTFS_USERS_TABLES="custom-scripts/users.txt"
+BR2_PACKAGE_DROPBEAR=y
+
+# Trabalho 1 -- servidor web do BusyBox para o apps/monitor
+BR2_PACKAGE_BUSYBOX_HTTPD=y
+
+# Lab 2.0 -- modinfo
+BR2_PACKAGE_KMOD=y
+BR2_PACKAGE_KMOD_TOOLS=y

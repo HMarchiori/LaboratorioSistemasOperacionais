@@ -1,0 +1,10 @@
+# Lab 1.1: Device Drivers -> Network device support -> Ethernet driver support
+#          -> Intel(R) PRO/1000 Gigabit Ethernet support (embutido, não módulo)
+CONFIG_ETHERNET=y
+CONFIG_NET_VENDOR_INTEL=y
+CONFIG_E1000=y
+
+# RTC (antigo rtc.fragment)
+CONFIG_RTC_CLASS=y
+CONFIG_RTC_INTF_PROC=y
+CONFIG_RTC_DRV_CMOS=y
