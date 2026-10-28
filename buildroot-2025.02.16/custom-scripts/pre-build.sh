@@ -13,11 +13,12 @@ if [ ! -x $BASE_DIR/host/bin/i686-buildroot-linux-gnu-gcc ]; then
     exit 0
 fi
 
-# Labs 1.3, 3.0, 3.1, 3.2 e Trabalho 1
+# Labs 1.3, 3.0, 3.1, 3.2, 3.3 e Trabalho 1
 for app in banner monitor \
            sched-query sched-burn sched-rt sched-share \
            schedrt-dl schedrt-multi schedrt-per \
-           disk-test-raw disk-test-sector-read disk-test; do
+           disk-test-raw disk-test-sector-read disk-test \
+           trace-dist disk-test-full; do
     make -C $BASE_DIR/../apps/$app || exit 1
 done
 

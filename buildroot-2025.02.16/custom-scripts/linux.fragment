@@ -8,3 +8,7 @@ CONFIG_E1000=y
 CONFIG_RTC_CLASS=y
 CONFIG_RTC_INTF_PROC=y
 CONFIG_RTC_DRV_CMOS=y
+
+# Lab 3.3: Kernel hacking -> Tracers -> Support for tracing block IO actions
+CONFIG_FTRACE=y
+CONFIG_BLK_DEV_IO_TRACE=y
