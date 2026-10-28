@@ -38,6 +38,11 @@ if [ ! -f sdb.bin ]; then
     dd if=/dev/zero of=sdb.bin bs=4096 count=262144
 fi
 
+if [ ! -f vm-swap.img ]; then
+    echo "== Lab 4.1: disco de swap de 32 MB (vm-swap.img, fora do git)"
+    dd if=/dev/zero of=vm-swap.img bs=1M count=32
+fi
+
 if [ "$1" = "--no-build" ]; then
     echo "Configuração pronta. Compile com: cd $BR && make && make"
     exit 0
