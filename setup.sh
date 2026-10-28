@@ -25,7 +25,7 @@ fi
 cd $BR
 
 if [ ! -f .config ]; then
-    echo "== Labs 1.1-2.0: configuração (qemu_x86_defconfig + custom-scripts/lab_defconfig)"
+    echo "== Labs 1.1-4.0: configuração (qemu_x86_defconfig + custom-scripts/lab_defconfig)"
     if [ ! -f custom-scripts/sisop_defconfig ]; then
         cat configs/qemu_x86_defconfig custom-scripts/lab_defconfig > custom-scripts/sisop_defconfig
     fi
