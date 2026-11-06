@@ -32,3 +32,5 @@ fi
 for mod in hello miscdrv procdrv timerdrv chardriver waitdrv; do
     make -C $BASE_DIR/../modules/$mod || exit 1
 done
+
+make -C $BASE_DIR/../apps/paging-test
