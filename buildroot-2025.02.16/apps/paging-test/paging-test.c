@@ -33,12 +33,13 @@ static void step(const char *name) {
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        fprintf(stderr, "Uso: %s <lazy|populate|huge|file> <MiB> [arquivo]\n", argv[0]);
+        fprintf(stderr, "Uso: %s <lazy|populate|mlock|huge|file> <MiB> [arquivo]\n", argv[0]);
         return 1;
     }
 
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
     int fd = -1;
+    int lock = 0;
     if (strcmp(argv[1], "populate") == 0) {
         flags |= MAP_POPULATE;
     } else if (strcmp(argv[1], "huge") == 0) {
@@ -49,6 +50,8 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         flags = MAP_PRIVATE;
+    } else if (strcmp(argv[1], "mlock") == 0) {
+        lock = 1;
     } else if (strcmp(argv[1], "lazy") != 0) {
         fprintf(stderr, "modo invalido: %s\n", argv[1]);
         return 1;
@@ -65,6 +68,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     step("mmap");
+
+    if (lock) {
+        if (mlock((void *)p, size) != 0) {
+            perror("mlock");
+            return 1;
+        }
+        step("mlock");
+    }
 
     /* Acessa um byte de cada pagina: escreve na memoria anonima, le do arquivo */
     for (size_t i = 0; i < size; i += page) {
