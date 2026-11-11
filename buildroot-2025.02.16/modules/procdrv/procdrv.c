@@ -22,40 +22,35 @@ static struct proc_dir_entry *proc_file;
 static char *greeting = NULL;
 static int id = -1;
 
-module_param(greeting, charp, 0644);
+module_param(greeting, charp, 0444);
 MODULE_PARM_DESC(greeting, "String fornecida pelo arquivo em /proc");
 
-module_param(id, int, 0644);
+module_param(id, int, 0444);
 MODULE_PARM_DESC(id, "Identificador fornecido pelo arquivo em /proc");
 
 static ssize_t procfile_read(struct file *filep, char __user *buffer, size_t len, loff_t *offset)
 {
     static int reads = 0;
+
     pr_info("Calling procfile_read\n");
 
-    if (*offset == 0)
-        ++reads;
-
-    char tmpbuf[256];
-    int tmplen = snprintf(tmpbuf, sizeof(tmpbuf), "[%d] %s, %d reads", id, greeting, reads);
-    if (tmplen >= sizeof(tmpbuf))
-        tmplen = sizeof(tmpbuf) - 1;
-
-    if (*offset >= tmplen)
+    if (*offset > 0)
         return 0;
 
-    size_t count = tmplen - *offset;
-    if (count > len)
-        count = len;
+    char tmpbuf[256];
+    int tmplen = snprintf(tmpbuf, sizeof(tmpbuf), "[%d] %s, %d reads", id, greeting, ++reads);
 
-    int error_count = copy_to_user(buffer, tmpbuf + *offset, count);
+    if (tmplen > len)
+        tmplen = len;
+
+    int error_count = copy_to_user(buffer, tmpbuf, tmplen);
     if (error_count != 0) {
         pr_alert("Failed to send %d characters to the user\n", error_count);
         return -EFAULT;
     }
 
-    *offset += count;
-    return count;
+    *offset += tmplen;
+    return tmplen;
 }
 
 static int procdrv_init(void)

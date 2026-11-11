@@ -2,6 +2,6 @@
 
 int main()
 {
-    printf("Trabalho 1 - Laboratório de Sistemas Operacionais\n");
+    printf("Hello World!\n");
     return 0;
 }

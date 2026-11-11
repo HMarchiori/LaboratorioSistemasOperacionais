@@ -78,9 +78,8 @@ static int waitdrv_init(void)
 
     init_waitqueue_head(&wait_queue);
     wait_thread = kthread_create(wait_function, NULL, "wait_thread");
-    if (IS_ERR(wait_thread)) {
+    if (wait_thread == NULL) {
         pr_info("thread creation failed\n");
-        err = PTR_ERR(wait_thread);
         goto err_thread;
     }
 

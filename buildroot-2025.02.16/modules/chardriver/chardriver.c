@@ -7,7 +7,6 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <linux/list.h>
-#include <linux/mutex.h>
 
 #define DEVICE_NAME "chardrv"
 
@@ -30,6 +29,7 @@ static struct file_operations fops =
 };
 
 static int major;
+
 static struct class *cls = NULL;
 static struct device *dev = NULL;
 
@@ -42,31 +42,14 @@ struct message {
 };
 
 static LIST_HEAD(messages);
-static unsigned int number_messages = 0;
-static DEFINE_MUTEX(messages_lock);
 
 static unsigned int max_size = 256;
 module_param(max_size, uint, 0444);
 MODULE_PARM_DESC(max_size, "Tamanho maximo de cada mensagem, em bytes");
 
-static unsigned int max_messages = 8;
-module_param(max_messages, uint, 0444);
-MODULE_PARM_DESC(max_messages, "Numero maximo de mensagens pendentes na fila");
-
-static void message_free(struct message *msg)
-{
-    kfree(msg->data);
-    kfree(msg);
-}
-
 static int chardrv_init(void)
 {
     pr_info("Inserting the Character Device\n");
-
-    if (max_messages == 0) {
-        pr_alert("max_messages must be at least 1\n");
-        return -EINVAL;
-    }
 
     major = register_chrdev(0, DEVICE_NAME, &fops);
     if (major < 0) {
@@ -102,10 +85,10 @@ static void chardrv_exit(void)
 
     list_for_each_entry_safe(msg, tmp, &messages, node) {
         list_del(&msg->node);
-        message_free(msg);
+        kfree(msg->data);
+        kfree(msg);
         count++;
     }
-    number_messages = 0;
     pr_info("Freed %d pending message(s)\n", count);
 
     device_destroy(cls, MKDEV(major, 0));
@@ -148,33 +131,16 @@ static ssize_t chardrv_write(struct file *filep, const char __user *buffer, size
 
     if (copy_from_user(msg->data, buffer, len) != 0) {
         pr_alert("Failed to receive the message from the user\n");
-        message_free(msg);
+        kfree(msg->data);
+        kfree(msg);
         return -EFAULT;
     }
 
     msg->data[len] = '\0';
     msg->size = len;
 
-    struct message *oldest = NULL;
-
-    mutex_lock(&messages_lock);
     list_add_tail(&msg->node, &messages);
-    number_messages++;
-
-    if (number_messages > max_messages) {
-        oldest = list_first_entry(&messages, struct message, node);
-        list_del(&oldest->node);
-        number_messages--;
-    }
-    unsigned int pending = number_messages;
-    mutex_unlock(&messages_lock);
-
-    pr_info("Queued a message with %zu characters (%u pending)\n", len, pending);
-
-    if (oldest != NULL) {
-        pr_info("Queue full, discarded the oldest message with %zu characters\n", oldest->size);
-        message_free(oldest);
-    }
+    pr_info("Queued a message with %zu characters\n", len);
 
     return len;
 }
@@ -184,10 +150,7 @@ static ssize_t chardrv_read(struct file *filep, char __user *buffer, size_t len,
     if (*offset > 0)
         return 0;
 
-    mutex_lock(&messages_lock);
-
     if (list_empty(&messages)) {
-        mutex_unlock(&messages_lock);
         pr_info("No messages to read\n");
         return 0;
     }
@@ -195,13 +158,11 @@ static ssize_t chardrv_read(struct file *filep, char __user *buffer, size_t len,
     struct message *msg = list_first_entry(&messages, struct message, node);
 
     if (len < msg->size) {
-        mutex_unlock(&messages_lock);
         pr_alert("User buffer is too small for the message\n");
         return -EINVAL;
     }
 
     if (copy_to_user(buffer, msg->data, msg->size) != 0) {
-        mutex_unlock(&messages_lock);
         pr_alert("Failed to send the message to the user\n");
         return -EFAULT;
     }
@@ -209,10 +170,8 @@ static ssize_t chardrv_read(struct file *filep, char __user *buffer, size_t len,
     size_t size = msg->size;
 
     list_del(&msg->node);
-    number_messages--;
-    mutex_unlock(&messages_lock);
-
-    message_free(msg);
+    kfree(msg->data);
+    kfree(msg);
 
     pr_info("Sent and freed a message with %zu characters\n", size);
 
