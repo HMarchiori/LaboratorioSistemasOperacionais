@@ -26,32 +26,7 @@ Addresses which fall into:
  9) local_data variable  = 0xbf9e6a88
 ```
 
-Dá para ver a ordem dos segmentos na memória. Nos endereços baixos ficam o código, depois os dados
-inicializados e depois o BSS (variáveis globais sem valor inicial). A pilha fica lá em cima, perto
-de `0xc0000000`, onde termina a parte do usuário em 32 bits.
-
-O `segments-symbols` confirma isso com os símbolos que o linker gera:
-
-- a função `prints` (`This function`) está entre `__executable_start` e `__etext`, ou seja, no código;
-- `init_data` está antes de `_edata`, nos dados inicializados;
-- `noinit_data` está entre `__bss_start` e `_end`, no BSS;
-- `local_data` é uma variável local, então está na pilha.
-
-Os valores exatos não servem para comparar os dois programas. O ASLR sorteia a cada execução onde
-o programa e a pilha são carregados, então o que importa é a ordem entre os endereços, não o valor.
-
 ## Atividade: heap no módulo segments
-
-Adicionamos à `print_mem` uma linha que imprime o início e o fim da heap, usando os campos
-`start_brk` e `brk` da `mm_struct`:
-
-```c
-"Segmento de Heap   start = 0x%lx, end = 0x%lx\n"
-...
-mm->start_brk, mm->brk,
-```
-
-Testamos com o próprio shell (`$$` é o PID do `sh`):
 
 ```
 # modprobe segments
@@ -67,7 +42,24 @@ A struct mm_struct tem 26 VMAs.
 5)   Inicio em 0x548000, Termina em 0x549000
 6)   Inicio em 0x549000, Termina em 0x56a000
 7)   Inicio em 0xb7d24000, Termina em 0xb7d47000
-...
+8)   Inicio em 0xb7d47000, Termina em 0xb7eb5000
+9)   Inicio em 0xb7eb5000, Termina em 0xb7f3b000
+10)   Inicio em 0xb7f3b000, Termina em 0xb7f3d000
+11)   Inicio em 0xb7f3d000, Termina em 0xb7f3e000
+12)   Inicio em 0xb7f3e000, Termina em 0xb7f48000
+13)   Inicio em 0xb7f48000, Termina em 0xb7f4a000
+14)   Inicio em 0xb7f4a000, Termina em 0xb7f52000
+15)   Inicio em 0xb7f52000, Termina em 0xb7f56000
+16)   Inicio em 0xb7f56000, Termina em 0xb7f57000
+17)   Inicio em 0xb7f57000, Termina em 0xb7f58000
+18)   Inicio em 0xb7f58000, Termina em 0xb7f5c000
+19)   Inicio em 0xb7f5c000, Termina em 0xb7f60000
+20)   Inicio em 0xb7f60000, Termina em 0xb7f62000
+21)   Inicio em 0xb7f62000, Termina em 0xb7f63000
+22)   Inicio em 0xb7f63000, Termina em 0xb7f87000
+23)   Inicio em 0xb7f87000, Termina em 0xb7f96000
+24)   Inicio em 0xb7f96000, Termina em 0xb7f98000
+25)   Inicio em 0xb7f98000, Termina em 0xb7f99000
 26)   Inicio em 0xbfc80000, Termina em 0xbfca1000
 Segmento de Codigo start = 0x494000, end = 0x51d3d4
 Segmento de Dados  start = 0x546870, end = 0x548137
@@ -81,24 +73,26 @@ Segmento de Pilha  start = 0xbfc9fc80
 00548000-00549000 rw-p 000b9000 08:00 17         /bin/busybox
 00549000-0056a000 rw-p 00000000 00:00 0          [heap]
 b7d24000-b7d47000 r--p 00000000 08:00 160        /lib/libc.so.6
-...
+b7d47000-b7eb5000 r-xp 00023000 08:00 160        /lib/libc.so.6
+b7eb5000-b7f3b000 r--p 00191000 08:00 160        /lib/libc.so.6
+b7f3b000-b7f3d000 r--p 00217000 08:00 160        /lib/libc.so.6
+b7f3d000-b7f3e000 rw-p 00219000 08:00 160        /lib/libc.so.6
+b7f3e000-b7f48000 rw-p 00000000 00:00 0
+b7f48000-b7f4a000 r--p 00000000 08:00 168        /lib/libresolv.so.2
+b7f4a000-b7f52000 r-xp 00002000 08:00 168        /lib/libresolv.so.2
+b7f52000-b7f56000 r--p 0000a000 08:00 168        /lib/libresolv.so.2
+b7f56000-b7f57000 r--p 0000d000 08:00 168        /lib/libresolv.so.2
+b7f57000-b7f58000 rw-p 0000e000 08:00 168        /lib/libresolv.so.2
+b7f58000-b7f5c000 rw-p 00000000 00:00 0
+b7f5c000-b7f60000 r--p 00000000 00:00 0          [vvar]
+b7f60000-b7f62000 r-xp 00000000 00:00 0          [vdso]
+b7f62000-b7f63000 r--p 00000000 08:00 155        /lib/ld-linux.so.2
+b7f63000-b7f87000 r-xp 00001000 08:00 155        /lib/ld-linux.so.2
+b7f87000-b7f96000 r--p 00025000 08:00 155        /lib/ld-linux.so.2
+b7f96000-b7f98000 r--p 00033000 08:00 155        /lib/ld-linux.so.2
+b7f98000-b7f99000 rw-p 00035000 08:00 155        /lib/ld-linux.so.2
 bfc80000-bfca1000 rw-p 00000000 00:00 0          [stack]
 ```
 
-Comparando o que o módulo imprimiu com o `/proc/$$/maps`:
-
-| Segmento | Módulo | `/proc/$$/maps` |
-|---|---|---|
-| Código | `0x494000`–`0x51d3d4` | dentro de `00494000-0051e000 r-xp` (a parte executável do busybox) |
-| Dados | `0x546870`–`0x548137` | dentro de `00546000-00548000` e `00548000-00549000` |
-| **Heap** | **`0x549000`–`0x56a000`** | **`00549000-0056a000 [heap]`: exatamente igual** |
-| Pilha | `0xbfc9fc80` | dentro de `bfc80000-bfca1000 [stack]` |
-
-O resultado da atividade bateu: o intervalo da heap que o módulo mostra é exatamente a linha
-`[heap]` do `maps`. Também dá para ver que as 26 VMAs listadas pelo módulo são as mesmas 26 linhas
-do `maps`, porque cada linha do `maps` é uma VMA.
-
-O código e os dados não batem certinho com o começo e o fim das linhas porque o módulo mostra onde
-as seções realmente começam e terminam, enquanto o `maps` mostra páginas inteiras (múltiplos de
-4 KB). A pilha mostra só um endereço de dentro da região, que é onde a pilha estava quando o
-programa começou.
+O `Segmento de Heap` (`0x549000`–`0x56a000`) é igual à linha `[heap]` do `/proc/$$/maps`
+(`00549000-0056a000`).

@@ -1,39 +1,15 @@
 # Lab 4.3 – Paginação sob demanda e páginas grandes
 
-Testes no QEMU (i386, 128 MB de RAM). Página normal de 4 KB e página grande de 4 MB
-(`Hugepagesize: 4096 kB`).
-
-## Atividade: modo mlock
-
-Criamos o modo `mlock` no `paging-test`. Ele mapeia a região igual ao `lazy`, mas logo depois do
-`mmap()` chama `mlock()`, que trava as páginas na RAM, e marca a etapa `mlock`:
-
-```c
-} else if (strcmp(argv[1], "mlock") == 0) {
-    lock = 1;
-}
-...
-if (lock) {
-    if (mlock((void *)p, size) != 0) {
-        perror("mlock");
-        return 1;
-    }
-    step("mlock");
-}
-```
-
-## Tabela de faltas
-
-Cada célula mostra `faltas menores / faltas maiores` naquela etapa.
+## Tabela de faltas (menores / maiores)
 
 | Execução | Comando | inicio | mmap | mlock | acesso | munmap |
 |---|---|---|---|---|---|---|
-| lazy | `paging-test lazy 32` | 77 / 1 | 0 / 0 | – | **8192** / 0 | 0 / 0 |
-| populate | `paging-test populate 32` | 80 / 0 | **8192** / 0 | – | 0 / 0 | 0 / 0 |
-| mlock | `paging-test mlock 32` | 81 / 0 | 0 / 0 | **8192** / 0 | 0 / 0 | 0 / 0 |
-| file (cache frio) | `paging-test file 16 /root/dados` depois do `drop_caches` | 74 / 4 | 0 / 0 | – | 256 / **129** | 0 / 0 |
+| lazy | `paging-test lazy 32` | 77 / 1 | 0 / 0 | – | 8192 / 0 | 0 / 0 |
+| populate | `paging-test populate 32` | 80 / 0 | 8192 / 0 | – | 0 / 0 | 0 / 0 |
+| mlock | `paging-test mlock 32` | 81 / 0 | 0 / 0 | 8192 / 0 | 0 / 0 | 0 / 0 |
+| file (cache frio) | `paging-test file 16 /root/dados` após o `drop_caches` | 74 / 4 | 0 / 0 | – | 256 / 129 | 0 / 0 |
 | file (cache quente) | `paging-test file 16 /root/dados` | 78 / 0 | 0 / 0 | – | 257 / 0 | 0 / 0 |
-| huge | `paging-test huge 32` com 8 páginas grandes reservadas | 79 / 0 | 0 / 0 | – | **8** / 0 | 0 / 0 |
+| huge | `paging-test huge 32` com 8 páginas grandes reservadas | 79 / 0 | 0 / 0 | – | 8 / 0 | 0 / 0 |
 
 ## Saídas
 
@@ -102,49 +78,31 @@ acesso   minflt = 8      majflt = 0      VmRSS = 1440 kB
 munmap   minflt = 0      majflt = 0      VmRSS = 1440 kB
 ```
 
-O primeiro `paging-test huge 32` deu `Cannot allocate memory` porque ainda não tinha nenhuma página
-grande reservada (`HugePages_Total: 0`). Depois de reservar 8 com o `nr_hugepages`, funcionou.
-
 ## Respostas
 
 **1. Em qual etapa ocorrem as faltas nos modos populate e mlock? Por que uma aplicação de tempo
 real prefere esse comportamento?**
 
-No `populate`, as 8192 faltas acontecem já no `mmap()`. No `mlock`, elas acontecem no `mlock()`,
-porque para travar as páginas na RAM ele precisa primeiro trazer todas elas. Nos dois casos, quando
-o programa vai usar a memória (etapa `acesso`), não acontece nenhuma falta, porque está tudo
-pronto. Uma aplicação de tempo real gosta disso porque paga todo o custo das faltas de uma vez, no
-começo. Depois, durante a execução, não aparece nenhuma "pausa surpresa" para tratar falta de
-página, e o tempo de resposta fica previsível. O `mlock` ainda garante que essas páginas nunca vão
-para o swap.
+No `populate` as 8192 faltas ocorrem no `mmap()`; no `mlock`, no `mlock()`. O laço de acesso fica
+com 0 faltas. A aplicação de tempo real paga o custo das faltas antes, no começo, e depois não sofre
+atrasos de falta de página durante a execução, então o tempo de resposta fica previsível.
 
 **2. Por que o modo huge gera 8 faltas, e quantas faltas ocorreriam com 32 MiB em páginas grandes
 de 2 MB (x86_64)?**
 
-Como no x86 de 32 bits cada página grande tem 4 MB, os 32 MiB cabem em 32 / 4 = **8 páginas
-grandes**. A primeira escrita em cada uma gera uma falta, que já mapeia os 4 MB inteiros, e os
-outros acessos dentro dela não geram mais faltas. No x86_64, com páginas grandes de 2 MB, seriam
-32 / 2 = **16 faltas**.
+A página grande no x86 de 32 bits tem 4 MB, e 32 MiB / 4 MB = 8 páginas: uma falta por página
+grande. Com páginas de 2 MB seriam 32 / 2 = **16 faltas**.
 
 **3. Por que o modo file com cache frio gera faltas maiores, e por que o total de faltas é bem
 menor que o número de páginas?**
 
-Depois do `drop_caches`, o arquivo não está mais na memória (page cache), então o kernel precisa
-ler do disco. Falta que precisa ir ao disco é falta maior: foram 129 no cache frio. Na segunda vez o
-arquivo já estava em memória e só houve faltas menores (0 maiores).
-
-O total (256 + 129 no frio, 257 no quente) é bem menor que as 4096 páginas porque o kernel adianta
-trabalho:
-
-- **Readahead:** quando lê do disco, ele já traz as próximas 32 páginas (128 KB), apostando que o
-  arquivo vai ser lido em sequência. Por isso tivemos ~4096 / 32 = 128 faltas maiores (medimos 129).
-- **Fault-around:** quando trata uma falta, ele já mapeia as 16 páginas vizinhas que estão em
-  memória (64 KB). Por isso tivemos ~4096 / 16 = 256 faltas menores (medimos 256 e 257).
+Depois do `drop_caches` o arquivo não está no page cache e precisa ser lido do disco, o que é uma
+falta maior. O total é menor que 4096 por causa do readahead (cada leitura traz 32 páginas:
+4096 / 32 ≈ 128, medimos 129 maiores) e do fault-around (cada falta mapeia 16 páginas:
+4096 / 16 = 256, medimos 256 e 257 menores).
 
 **4. Por que o VmRSS não aumenta no modo huge? Em qual campo de /proc/\<pid\>/status essa memória
 aparece?**
 
-As páginas grandes saem de um "estoque" separado, que foi reservado antes com o `nr_hugepages` (é o
-`Hugetlb: 32768 kB` no `/proc/meminfo`). Essa memória é contada à parte, e não entra no RSS normal
-do processo. Por isso o VmRSS ficou em ~1440 kB mesmo com 32 MiB em uso. Segundo o `man 5 proc`,
-ela aparece no campo **`HugetlbPages`** do `/proc/<pid>/status`.
+As páginas grandes vêm do pool hugetlb reservado antes (`nr_hugepages`) e são contadas à parte,
+fora do RSS normal. Elas aparecem no campo `HugetlbPages` do `/proc/<pid>/status`.
